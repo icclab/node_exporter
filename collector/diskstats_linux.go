@@ -36,7 +36,7 @@ const (
 
 var (
 	ignoredDevices = flag.String("collector.diskstats.ignored-devices", "^(ram|loop|fd|(h|s|v|xv)d[a-z]|nvme\\d+n\\d+p)\\d+$", "Regexp of devices to ignore for diskstats.")
-	diskIOStats    = map[string]int{}
+	diskIOStats    = map[string]string{}
 )
 
 type diskstatsCollector struct {
@@ -180,7 +180,7 @@ func NewDiskstatsCollector() (Collector, error) {
 					Subsystem: diskSubsystem,
 					Name:      "io_time_ms_hist",
 					Help:      "A histogram of the disk I/O time in milliseconds.",
-					Buckets:   prometheus.LinearBuckets(0.001, 0.01, 30),
+					Buckets:   prometheus.LinearBuckets(0, 100, 100),
 					},
 					diskLabelNames,
 			),
@@ -215,6 +215,8 @@ func (c *diskstatsCollector) Update(ch chan<- prometheus.Metric) (err error) {
 				counter.WithLabelValues(dev).Set(v)
 			} else if gauge, ok := c.metrics[k].(*prometheus.GaugeVec); ok {
 				gauge.WithLabelValues(dev).Set(v)
+			} else if histogram, ok := c.metrics[k].(*prometheus.HistogramVec); ok {
+				histogram.WithLabelValues(dev).Observe(v)
 			} else {
 				return fmt.Errorf("unexpected collector %d", k)
 			}
@@ -272,14 +274,24 @@ func parseDiskStats(r io.Reader) (map[string]map[int]string, error) {
 			return nil, fmt.Errorf("invalid value for sectors written in %s: %s", procFilePath("diskstats"), scanner.Text())
 		}
 		diskStats[dev][12] = bytesWritten
-	}
-    if diskIOStats[dev] == 0{
+
+    if diskIOStats[dev] == ""{
 			diskIOStats[dev] = parts[9]
-			diskStats[dev][13] = 0
+			diskStats[dev][13] = "0"
 		} else {
-			diskStats[dev][13] = strconv.FormatFloat(strconv.ParseFloat(parts[9], 64) - strconv.ParseFloat(diskIOStats[dev], 64), 'f', 4, 64)
+			currentV, err  = strconv.ParseFloat(parts[9], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for disk io time in diskstats: %s", err)
+			}
+
+			previousV, err = strconv.ParseFloat(diskIOStats[dev], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for diskIOStats variable: %s", err)
+			}
+			diskStats[dev][13] = strconv.FormatFloat(currentV - previousV, 'f', 4, 64)
 			diskIOStats[dev] = parts[9]
 		}
+	}
     // strconv.ParseFloat(value, 64)
 	return diskStats, nil
 }
