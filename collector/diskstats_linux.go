@@ -36,6 +36,7 @@ const (
 
 var (
 	ignoredDevices = flag.String("collector.diskstats.ignored-devices", "^(ram|loop|fd|(h|s|v|xv)d[a-z]|nvme\\d+n\\d+p)\\d+$", "Regexp of devices to ignore for diskstats.")
+	diskIOStats    = map[string]int{}
 )
 
 type diskstatsCollector struct {
@@ -173,6 +174,16 @@ func NewDiskstatsCollector() (Collector, error) {
 				},
 				diskLabelNames,
 			),
+			prometheus.NewHistogramVec(
+				prometheus.HistogramOpts{
+					Namespace: Namespace,
+					Subsystem: diskSubsystem,
+					Name:      "io_time_ms_hist",
+					Help:      "A histogram of the disk I/O time in milliseconds.",
+					Buckets:   prometheus.LinearBuckets(0.001, 0.01, 30),
+					},
+					diskLabelNames,
+			),
 		},
 	}, nil
 }
@@ -262,6 +273,13 @@ func parseDiskStats(r io.Reader) (map[string]map[int]string, error) {
 		}
 		diskStats[dev][12] = bytesWritten
 	}
-
+    if diskIOStats[dev] == 0{
+			diskIOStats[dev] = parts[9]
+			diskStats[dev][13] = 0
+		} else {
+			diskStats[dev][13] = strconv.FormatFloat(strconv.ParseFloat(parts[9], 64) - strconv.ParseFloat(diskIOStats[dev], 64), 'f', 4, 64)
+			diskIOStats[dev] = parts[9]
+		}
+    // strconv.ParseFloat(value, 64)
 	return diskStats, nil
 }
