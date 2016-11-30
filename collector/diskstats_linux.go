@@ -279,12 +279,12 @@ func parseDiskStats(r io.Reader) (map[string]map[int]string, error) {
 			diskIOStats[dev] = parts[9]
 			diskStats[dev][13] = "0"
 		} else {
-			currentV, err  = strconv.ParseFloat(parts[9], 64)
+			currentV, err  := strconv.ParseFloat(parts[9], 64)
 			if err != nil {
 				return nil, fmt.Errorf("invalid value for disk io time in diskstats: %s", err)
 			}
 
-			previousV, err = strconv.ParseFloat(diskIOStats[dev], 64)
+			previousV, err := strconv.ParseFloat(diskIOStats[dev], 64)
 			if err != nil {
 				return nil, fmt.Errorf("invalid value for diskIOStats variable: %s", err)
 			}
@@ -292,6 +292,5 @@ func parseDiskStats(r io.Reader) (map[string]map[int]string, error) {
 			diskIOStats[dev] = parts[9]
 		}
 	}
-    // strconv.ParseFloat(value, 64)
 	return diskStats, nil
 }

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"regexp"
 	"strings"
 
@@ -28,6 +29,8 @@ import (
 
 var (
 	procNetDevFieldSep = regexp.MustCompile("[ :] *")
+	netBytesReceived = map[string]int{}
+	netBytesTransmitted = map[string]int{}
 )
 
 func getNetDevStats(ignore *regexp.Regexp) (map[string]map[string]string, error) {
@@ -68,6 +71,36 @@ func parseNetDevStats(r io.Reader, ignore *regexp.Regexp) (map[string]map[string
 		for i, v := range header {
 			netDev[dev]["receive_"+v] = parts[i+1]
 			netDev[dev]["transmit_"+v] = parts[i+1+len(header)]
+		}
+		if netBytesReceived[dev] == 0{
+			netBytesReceived[dev], err := strconv.ParseFloat(parts[1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for network bytes read: %s", err)
+			}
+			netDev[dev]["receive_bytes_hist"] = 0
+		} else{
+			currentV, err  := strconv.ParseFloat(parts[1], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for network bytes read: %s", err)
+			}
+			previousV = netBytesReceived[dev]
+			netDev[dev]["receive_bytes_hist"] = currentV - previousV
+			netBytesReceived[dev] = currentV
+		}
+		if netBytesTransmitted[dev] == 0{
+			netBytesTransmitted[dev], err := strconv.ParseFloat(parts[1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for network bytes transmitted: %s", err)
+			}
+			netDev[dev]["transmit_bytes_hist"] = 0
+		} else{
+			currentV, err  := strconv.ParseFloat(parts[1+len(header)], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for network bytes transmitted: %s", err)
+			}
+			previousV = netBytesTransmitted[dev]
+			netDev[dev]["transmit_bytes_hist"] = currentV - previousV
+			netBytesTransmitted[dev] = currentV
 		}
 	}
 	return netDev, nil
