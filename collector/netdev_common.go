@@ -44,7 +44,7 @@ func init() {
 	Factories["netdev"] = NewNetDevCollector
 }
 
-func NetworkBuckets(start, factor int, count int) []float64{
+func NetworkBuckets(start, factor float64, count float64) []float64{
 	if count < 1 {
 		panic("ExponentialBuckets needs a positive count")
 	}
@@ -56,7 +56,7 @@ func NetworkBuckets(start, factor int, count int) []float64{
 	}
 	buckets := make([]float64, count)
 	placeholder := 0
-	for j:= 0; j < 10; i++ {
+	for j:= 0; j < 10; j++ {
 		if j == 0{
 			placeholder = start
 		}else{
@@ -78,7 +78,7 @@ func NewNetDevCollector() (Collector, error) {
 		subsystem:             "network",
 		ignoredDevicesPattern: pattern,
 		metricDescs:           map[string]*prometheus.Desc{},
-		bytes_received_hist:   prometheus.NewHistogramVec(
+		bytes_receive_hist:   prometheus.NewHistogramVec(
 					      prometheus.HistogramOpts{
 					             Namespace: Namespace,
 					             Subsystem: "network",
