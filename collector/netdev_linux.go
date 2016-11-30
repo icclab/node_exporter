@@ -73,7 +73,8 @@ func parseNetDevStats(r io.Reader, ignore *regexp.Regexp) (map[string]map[string
 			netDev[dev]["transmit_"+v] = parts[i+1+len(header)]
 		}
 		if netBytesReceived[dev] == 0{
-			netBytesReceived[dev], err := strconv.ParseFloat(parts[1])
+			placeholder, err := strconv.ParseFloat(parts[1])
+			netBytesReceived[dev] = placeholder
 			if err != nil {
 				return nil, fmt.Errorf("invalid value for network bytes read: %s", err)
 			}
@@ -88,7 +89,8 @@ func parseNetDevStats(r io.Reader, ignore *regexp.Regexp) (map[string]map[string
 			netBytesReceived[dev] = currentV
 		}
 		if netBytesTransmitted[dev] == 0{
-			netBytesTransmitted[dev], err := strconv.ParseFloat(parts[1])
+			placeholder, err := strconv.ParseFloat(parts[1])
+			netBytesTransmitted[dev] = placeholder
 			if err != nil {
 				return nil, fmt.Errorf("invalid value for network bytes transmitted: %s", err)
 			}

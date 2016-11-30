@@ -44,7 +44,7 @@ func init() {
 	Factories["netdev"] = NewNetDevCollector
 }
 
-func NetworkBuckets(start, factor float64, count int) []float64{
+func NetworkBuckets(start, factor int, count int) []float64{
 	if count < 1 {
 		panic("ExponentialBuckets needs a positive count")
 	}
@@ -55,11 +55,12 @@ func NetworkBuckets(start, factor float64, count int) []float64{
 		panic("ExponentialBuckets needs a factor greater than 1")
 	}
 	buckets := make([]float64, count)
-	for j:= 0; i < 10; i++ {
+	placeholder := 0
+	for j:= 0; j < 10; i++ {
 		if j == 0{
-			placeholder := start
+			placeholder = start
 		}else{
-			placeholder := start*j
+			placeholder = start*j
 		}
 		for i := range buckets {
 			buckets[i+(j*count)] = start
@@ -108,6 +109,10 @@ func (c *netDevCollector) Update(ch chan<- prometheus.Metric) (err error) {
 	}
 	for dev, devStats := range netDev {
 		for key, value := range devStats {
+			v, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				return fmt.Errorf("invalid value %s in netstats: %s", value, err)
+			}
 			if key == "receive_bytes_hist"{
 				c.bytes_receive_hist.WithLabelValues(dev).Observe(v)
 			}else if key == "transmit_bytes_hist"{
@@ -122,10 +127,6 @@ func (c *netDevCollector) Update(ch chan<- prometheus.Metric) (err error) {
 						nil,
 					)
 					c.metricDescs[key] = desc
-				}
-				v, err := strconv.ParseFloat(value, 64)
-				if err != nil {
-					return fmt.Errorf("invalid value %s in netstats: %s", value, err)
 				}
 				ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, v, dev)
 			}
