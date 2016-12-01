@@ -27,48 +27,21 @@ import (
 
 var (
 	netdevIgnoredDevices = flag.String(
-		"collector.netdev.ignored-devices", "^$",
+		"collector.netdev.ignored-devices", "^(veth\\w+|q\\w+-\\w+|docker0|br-\\w+|enp\\w+|eno\\d.\\d+|ovs-system)$",
 		"Regexp of net devices to ignore for netdev collector.")
 )
 
 type netDevCollector struct {
-	subsystem             string
-	ignoredDevicesPattern *regexp.Regexp
-	metricDescs           map[string]*prometheus.Desc
-	bytes_receive_hist    *prometheus.HistogramVec
-	bytes_transmit_hist   *prometheus.HistogramVec
+	subsystem                string
+	ignoredDevicesPattern    *regexp.Regexp
+	metricDescs              map[string]*prometheus.Desc
+	megabits_receive_hist    *prometheus.HistogramVec
+	megabits_transmit_hist   *prometheus.HistogramVec
 
 }
 
 func init() {
 	Factories["netdev"] = NewNetDevCollector
-}
-
-func NetworkBuckets(start, factor float64, count float64) []float64{
-	if count < 1 {
-		panic("ExponentialBuckets needs a positive count")
-	}
-	if start <= 0 {
-		panic("ExponentialBuckets needs a positive start value")
-	}
-	if factor <= 1 {
-		panic("ExponentialBuckets needs a factor greater than 1")
-	}
-	buckets := make([]float64, count)
-	placeholder := 0
-	for j:= 0; j < 10; j++ {
-		if j == 0{
-			placeholder = start
-		}else{
-			placeholder = start*j
-		}
-		for i := range buckets {
-			buckets[i+(j*count)] = start
-			placeholder /= factor
-			start += placeholder
-		}
-	}
-	return buckets
 }
 
 // NewNetDevCollector returns a new Collector exposing network device stats.
@@ -78,23 +51,23 @@ func NewNetDevCollector() (Collector, error) {
 		subsystem:             "network",
 		ignoredDevicesPattern: pattern,
 		metricDescs:           map[string]*prometheus.Desc{},
-		bytes_receive_hist:   prometheus.NewHistogramVec(
+		megabits_receive_hist:   prometheus.NewHistogramVec(
 					      prometheus.HistogramOpts{
 					             Namespace: Namespace,
 					             Subsystem: "network",
-					             Name:      "bytes_received_hist",
-					             Help:      "Histogram of network bytes received.",
-					             Buckets:   NetworkBuckets(536870912, 2, 9),
+					             Name:      "receive_megabits_hist",
+					             Help:      "Histogram of network megabits received.",
+					             Buckets:   [56500, 54450, 49500, 44000, 41250, 35750, 27500],
 					      },
 				              []string{"device"},
                                        ),
-		bytes_transmit_hist:   prometheus.NewHistogramVec(
+		megabits_transmit_hist:   prometheus.NewHistogramVec(
 					      prometheus.HistogramOpts{
 					             Namespace: Namespace,
 					             Subsystem: "network",
-					             Name:      "bytes_received_hist",
-					             Help:      "Histogram of network bytes transmitted.",
-					             Buckets:   NetworkBuckets(536870912, 2, 9),
+					             Name:      "transmit_megabits_hist",
+					             Help:      "Histogram of network megabits transmitted.",
+					             Buckets:   [56500, 54450, 49500, 44000, 41250, 35750, 27500],
 					      },
 				              []string{"device"},
                                        ),
@@ -113,10 +86,10 @@ func (c *netDevCollector) Update(ch chan<- prometheus.Metric) (err error) {
 			if err != nil {
 				return fmt.Errorf("invalid value %s in netstats: %s", value, err)
 			}
-			if key == "receive_bytes_hist"{
-				c.bytes_receive_hist.WithLabelValues(dev).Observe(v)
-			}else if key == "transmit_bytes_hist"{
-				c.bytes_transmit_hist.WithLabelValues(dev).Observe(v)
+			if key == "receive_megabits_hist"{
+				c.megabits_receive_hist.WithLabelValues(dev).Observe(v)
+			}else if key == "transmit_megabits_hist"{
+				c.megabits_transmit_hist.WithLabelValues(dev).Observe(v)
 			}else{
 				desc, ok := c.metricDescs[key]
 				if !ok {
@@ -132,7 +105,7 @@ func (c *netDevCollector) Update(ch chan<- prometheus.Metric) (err error) {
 			}
 		}
 	}
-	c.bytes_receive_hist.Collect(ch)
-	c.bytes_transmit_hist.Collect(ch)
+	c.megabits_receive_hist.Collect(ch)
+	c.megabits_transmit_hist.Collect(ch)
 	return nil
 }

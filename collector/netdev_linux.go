@@ -69,8 +69,15 @@ func parseNetDevStats(r io.Reader, ignore *regexp.Regexp) (map[string]map[string
 		}
 		netDev[dev] = map[string]string{}
 		for i, v := range header {
+			if v == "bytes"{
+				receive_mbits, err := strconv.ParseFloat(parts[i+1], 64)
+				transmit_mbits, err := strconv.ParseFloat(parts[i+1+len(header)], 64)
+				netDev[dev]["receive_mbits"] = strconv.FormatFloat(receive_mbits*8/1048576, 'f', 4, 64)
+				netDev[dev]["transmit_mbits"] = strconv.FormatFloat(transmit_mbits*8/1048576, 'f', 4, 64)
+			}else{
 			netDev[dev]["receive_"+v] = parts[i+1]
 			netDev[dev]["transmit_"+v] = parts[i+1+len(header)]
+			}
 		}
 		if netBytesReceived[dev] == 0{
 			placeholder, err := strconv.ParseFloat(parts[1], 64)
@@ -78,30 +85,30 @@ func parseNetDevStats(r io.Reader, ignore *regexp.Regexp) (map[string]map[string
 			if err != nil {
 				return nil, fmt.Errorf("invalid value for network bytes read: %s", err)
 			}
-			netDev[dev]["receive_bytes_hist"] = 0.0
+			netDev[dev]["transmit_megabits_hist"] = 0.0
 		} else{
 			currentV, err  := strconv.ParseFloat(parts[1], 64)
 			if err != nil {
 				return nil, fmt.Errorf("invalid value for network bytes read: %s", err)
 			}
-			previousV = netBytesReceived[dev]
-			netDev[dev]["receive_bytes_hist"] = currentV - previousV
+			previousV := netBytesReceived[dev]
+			netDev[dev]["transmit_megabits_hist"] = strconv.FormatFloat((currentV - previousV)*8/1048576, 'f', 4, 64)
 			netBytesReceived[dev] = currentV
 		}
 		if netBytesTransmitted[dev] == 0{
-			placeholder, err := strconv.ParseFloat(parts[1], 64)
+			placeholder, err := strconv.ParseFloat(parts[1+len(header)], 64)
 			netBytesTransmitted[dev] = placeholder
 			if err != nil {
 				return nil, fmt.Errorf("invalid value for network bytes transmitted: %s", err)
 			}
-			netDev[dev]["transmit_bytes_hist"] = 0.0
+			netDev[dev]["transmit_megabits_hist"] = 0.0
 		} else{
 			currentV, err  := strconv.ParseFloat(parts[1+len(header)], 64)
 			if err != nil {
 				return nil, fmt.Errorf("invalid value for network bytes transmitted: %s", err)
 			}
 			previousV := netBytesTransmitted[dev]
-			netDev[dev]["transmit_bytes_hist"] = currentV - previousV
+			netDev[dev]["transmit_megabits_hist"] = strconv.FormatFloat((currentV - previousV)*8/1048576, 'f', 4, 64)
 			netBytesTransmitted[dev] = currentV
 		}
 	}
